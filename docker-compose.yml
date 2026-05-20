@@ -1,6 +1,6 @@
 services:
   ds-hotspot:
-    mage: ghcr.io/sdhemily/ds-hotspot:latest
+    image: ghcr.io/sdhemily/ds-hotspot:latest
     container_name: ds-hotspot
     network_mode: host
     cap_add:
@@ -14,7 +14,7 @@ services:
       HOTSPOT_IFACE: wlan0
       HOTSPOT_IP: 172.31.255.1
       HOTSPOT_SUBNET: 172.31.255.0/24
-      DS_MAC_ADDR: 00:11:22:33:44:55 # /!\ IMPORTANT - Set me to your DSes MAC Address! 
+      DS_MAC_ADDR: 00:11:22:33:44:55 # /!\ IMPORTANT - Set this to your DSes MAC Address! 
     volumes:
       - /srv/ds-hotspot/config/hostapd.conf:/etc/hostapd/hostapd.conf:ro
     devices: 
