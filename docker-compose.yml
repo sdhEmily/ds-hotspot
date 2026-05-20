@@ -1,0 +1,22 @@
+services:
+  ds-hotspot:
+    mage: ghcr.io/sdhemily/ds-hotspot:latest
+    container_name: ds-hotspot
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+    environment:
+      # These are the defaults of every environment variable that can be set
+      # (other than DS_MAC_ADDR). You can remove any that you don't change if you want.
+
+      VERBOSE: 0 # Useful for debugging your hostapd.conf but not much else.
+      UPLINK_IFACE: eth0
+      HOTSPOT_IFACE: wlan0
+      HOTSPOT_IP: 172.31.255.1
+      HOTSPOT_SUBNET: 172.31.255.0/24
+      DS_MAC_ADDR: 00:11:22:33:44:55 # /!\ IMPORTANT - Set me to your DSes MAC Address! 
+    volumes:
+      - /srv/ds-hotspot/config/hostapd.conf:/etc/hostapd/hostapd.conf:ro
+    devices: 
+      - /dev/rfkill:/dev/rfkill
+    restart: unless-stopped
