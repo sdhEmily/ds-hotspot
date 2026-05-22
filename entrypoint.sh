@@ -18,15 +18,8 @@ if [ "${VERBOSE_LOGGING:-0}" = "1" ]; then
     DNSMASQ_ARGS="--log-dhcp --log-queries"
 fi
 
-if [ -z "${DS_MAC_ADDR:-}" ]; then
-    echo "[!] MAC Address not set. Please set the environment variable DS_MAC_ADDR."
-    exit 1
-fi
+# dnsmasq config
 
-# config files
-
-echo "$DS_MAC_ADDR" > /etc/hostapd/accept
-chmod 600 /etc/hostapd/accept
 cat > /etc/dnsmasq.conf <<EOF
 interface=${HOTSPOT_IFACE}
 bind-dynamic

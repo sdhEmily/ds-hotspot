@@ -25,7 +25,6 @@ services:
     environment:
       UPLINK_IFACE: eth0
       HOTSPOT_IFACE: wlan0
-      DS_MAC_ADDR: 00:11:22:33:44:55 # /!\ IMPORTANT - Set this to your DSes MAC Address! 
     volumes:
       - ./hostapd.conf:/etc/hostapd/hostapd.conf:ro
     devices: 
