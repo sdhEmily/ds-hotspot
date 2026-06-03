@@ -13,12 +13,18 @@ HOTSPOT_CIDR="${HOTSPOT_IP}/24"
 HOTSPOT_SUBNET="${HOTSPOT_SUBNET:-172.31.255.0/24}"
 CHAIN_NAME="DS_HOTSPOT"
 
-if [ "${VERBOSE_LOGGING:-0}" = "1" ]; then
+if [ "${VERBOSE:-0}" = "1" ]; then
     HOSTAPD_ARGS="-d"
     DNSMASQ_ARGS="--log-dhcp --log-queries"
 fi
 
-# dnsmasq config
+if [ -z "${HOSTAPD_CONF:-}" ]; then
+    echo "[!] hostapd config missing. Please set $HOSTAPD_CONF."
+    exit 1
+fi
+
+mkdir /etc/hostapd
+echo -e "interface=$HOTSPOT_IFACE\n$HOSTAPD_CONF" > /etc/hostapd/hostapd.conf
 
 cat > /etc/dnsmasq.conf <<EOF
 interface=${HOTSPOT_IFACE}

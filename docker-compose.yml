@@ -9,13 +9,27 @@ services:
       # These are the defaults of every environment variable that can be set
       # (other than DS_MAC_ADDR). You can remove any that you don't change if you want.
 
-      VERBOSE: 0 # Useful for debugging your hostapd.conf but not much else.
+      VERBOSE: 0 # Useful for debugging your config but not much else.
       UPLINK_IFACE: eth0
       HOTSPOT_IFACE: wlan0
       HOTSPOT_IP: 172.31.255.1
       HOTSPOT_SUBNET: 172.31.255.0/24
-    volumes:
-      - /srv/ds-hotspot/hostapd.conf:/etc/hostapd/hostapd.conf:ro
+      # This is an example config and will most likely NOT work for your adapter
+      # This has been configured for a Realtek RTL8188FU chipset.
+      # Interface is automatically set to HOTSPOT_IFACE so there is no need to include it.
+      HOSTAPD_CONF: |
+        driver=nl80211
+
+        ssid=DS-Hotspot
+        wep_default_key=0
+        wep_key0=112233445566778899aabbccdd
+
+        hw_mode=b
+        channel=6
+        wmm_enabled=0
+        auth_algs=1
+        ignore_broadcast_ssid=0
+        max_num_sta=1
     devices: 
       - /dev/rfkill:/dev/rfkill
     restart: unless-stopped
