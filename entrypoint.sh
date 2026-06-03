@@ -10,7 +10,8 @@ HOTSPOT_IFACE="${HOTSPOT_IFACE:-wlan0}"
 UPLINK_IFACE="${UPLINK_IFACE:-eth0}"
 HOTSPOT_IP="${HOTSPOT_IP:-172.31.255.1}"
 HOTSPOT_CIDR="${HOTSPOT_IP}/24"
-HOTSPOT_SUBNET="${HOTSPOT_SUBNET:-172.31.255.0/24}"
+HOTSPOT_SUBNET="$(echo "$HOTSPOT_IP" | cut -d. -f1-3).0/24"
+DNS_SERVER="${DNS_SERVER:-167.235.229.36}"
 CHAIN_NAME="DS_HOTSPOT"
 
 if [ "${VERBOSE:-0}" = "1" ]; then
@@ -19,11 +20,11 @@ if [ "${VERBOSE:-0}" = "1" ]; then
 fi
 
 if [ -z "${HOSTAPD_CONF:-}" ]; then
-    echo "[!] hostapd config missing. Please set $HOSTAPD_CONF."
+    echo "[!] hostapd config missing. Please set HOSTAPD_CONF."
     exit 1
 fi
 
-mkdir /etc/hostapd
+mkdir -p /etc/hostapd
 echo -e "interface=$HOTSPOT_IFACE\n$HOSTAPD_CONF" > /etc/hostapd/hostapd.conf
 
 cat > /etc/dnsmasq.conf <<EOF
@@ -37,7 +38,7 @@ dhcp-authoritative
 dhcp-no-override
 no-ping
 no-resolv
-server=167.235.229.36
+server=$DNS_SERVER
 EOF
 
 # cleanup functions 
@@ -45,16 +46,12 @@ EOF
 cleanup() {
     echo "[*] Clearing the firewall state..."
     iptables -D FORWARD -s "$HOTSPOT_SUBNET" -j "$CHAIN_NAME" 2>/dev/null || true
-    iptables -D FORWARD \
-        -d "$HOTSPOT_SUBNET" \
-        -m conntrack --ctstate ESTABLISHED,RELATED \
-        -j ACCEPT 2>/dev/null || true
+    iptables -D FORWARD -d "$HOTSPOT_SUBNET" -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || true
     iptables -F "$CHAIN_NAME" 2>/dev/null || true
     iptables -X "$CHAIN_NAME" 2>/dev/null || true
-    iptables -t nat -D POSTROUTING \
-        -s "$HOTSPOT_SUBNET" \
-        -o "$UPLINK_IFACE" \
-        -j MASQUERADE 2>/dev/null || true
+    iptables -t nat -D POSTROUTING -s "$HOTSPOT_SUBNET" -o "$UPLINK_IFACE" -j MASQUERADE 2>/dev/null || true
+    ip6tables -D INPUT -i "$HOTSPOT_IFACE" -j DROP -m comment --comment "ds-hotspot" 2>/dev/null || true
+    ip6tables -D FORWARD -i "$HOTSPOT_IFACE" -j DROP -m comment --comment "ds-hotspot" 2>/dev/null || true
 }
 
 quit() {
@@ -80,107 +77,33 @@ ip link set "$HOTSPOT_IFACE" up
 cleanup
 echo "[*] Configuring firewall..."
 iptables -N "$CHAIN_NAME" 2>/dev/null || iptables -F "$CHAIN_NAME"
-iptables -C FORWARD \
-    -d "$HOTSPOT_SUBNET" \
-    -m conntrack --ctstate ESTABLISHED,RELATED \
-    -j ACCEPT 2>/dev/null || \
-iptables -I FORWARD 1 \
-    -d "$HOTSPOT_SUBNET" \
-    -m conntrack --ctstate ESTABLISHED,RELATED \
-    -j ACCEPT
-iptables -C FORWARD \
-    -s "$HOTSPOT_SUBNET" \
-    -j "$CHAIN_NAME" 2>/dev/null || \
-iptables -I FORWARD 1 \
-    -s "$HOTSPOT_SUBNET" \
-    -j "$CHAIN_NAME"
+iptables -I FORWARD 1 -d "$HOTSPOT_SUBNET" -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+iptables -I FORWARD 1 -s "$HOTSPOT_SUBNET" -j "$CHAIN_NAME"
 
-echo "[*] Fetching WiiLink hosts..."
-TMP_ALLOWLIST="/tmp/wiilink-hosts.txt"
-curl -fsSL "https://raw.githubusercontent.com/WiiLink24/DNS-Server/refs/heads/master/dns_zones-hosts.txt" -o "$TMP_ALLOWLIST"
-awk '{print $1}' "$TMP_ALLOWLIST" | sort -u > /tmp/allowed_ips.txt
+echo "[*] Resolving WFC IPs..."
+while read -r domain; do
+    dig @"$DNS_SERVER" +short "$domain"
+done < /urls | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | sort -u > /tmp/allowed_ips.txt
 
-iptables -C "$CHAIN_NAME" \
-    -s "$HOTSPOT_SUBNET" \
-    -d "$HOTSPOT_IP" \
-    -p udp \
-    --dport 53 \
-    -j ACCEPT 2>/dev/null || \
-iptables -A "$CHAIN_NAME" \
-    -s "$HOTSPOT_SUBNET" \
-    -d "$HOTSPOT_IP" \
-    -p udp \
-    --dport 53 \
-    -j ACCEPT
-iptables -C "$CHAIN_NAME" \
-    -s "$HOTSPOT_SUBNET" \
-    -d "$HOTSPOT_IP" \
-    -p tcp \
-    --dport 53 \
-    -j ACCEPT 2>/dev/null || \
-iptables -A "$CHAIN_NAME" \
-    -s "$HOTSPOT_SUBNET" \
-    -d "$HOTSPOT_IP" \
-    -p tcp \
-    --dport 53 \
-    -j ACCEPT
-iptables -C INPUT \
-    -i "$HOTSPOT_IFACE" \
-    -p udp \
-    --dport 67 \
-    -j ACCEPT 2>/dev/null || \
-iptables -A INPUT \
-    -i "$HOTSPOT_IFACE" \
-    -p udp \
-    --dport 67 \
-    -j ACCEPT
-iptables -C OUTPUT \
-    -o "$HOTSPOT_IFACE" \
-    -p udp \
-    --sport 67 \
-    -j ACCEPT 2>/dev/null || \
-iptables -A OUTPUT \
-    -o "$HOTSPOT_IFACE" \
-    -p udp \
-    --sport 67 \
-    -j ACCEPT
+if ! grep -q '[0-9]' /tmp/allowed_ips.txt; then
+    echo "[!] No IPs in list! Exiting."
+    exit 1
+fi
+
+iptables -A "$CHAIN_NAME" -s "$HOTSPOT_SUBNET" -d "$HOTSPOT_IP" -p udp --dport 53 -j ACCEPT
+iptables -A "$CHAIN_NAME" -s "$HOTSPOT_SUBNET" -d "$HOTSPOT_IP" -p tcp --dport 53 -j ACCEPT
+iptables -A "$CHAIN_NAME" -s "$HOTSPOT_SUBNET" -d "$DNS_SERVER" -j ACCEPT
 
 while read -r ip; do
     echo "[*] Allowing $ip"
-    iptables -C "$CHAIN_NAME" \
-        -s "$HOTSPOT_SUBNET" \
-        -d "$ip" \
-        -j ACCEPT 2>/dev/null || \
-    iptables -A "$CHAIN_NAME" \
-        -s "$HOTSPOT_SUBNET" \
-        -d "$ip" \
-        -j ACCEPT
+    iptables -A "$CHAIN_NAME" -s "$HOTSPOT_SUBNET" -d "$ip" -j ACCEPT
 done < /tmp/allowed_ips.txt
 
-iptables -C "$CHAIN_NAME" -d 10.0.0.0/8 -j DROP 2>/dev/null || \
-iptables -A "$CHAIN_NAME" -d 10.0.0.0/8 -j DROP
-iptables -C "$CHAIN_NAME" -d 172.16.0.0/12 -j DROP 2>/dev/null || \
-iptables -A "$CHAIN_NAME" -d 172.16.0.0/12 -j DROP
-iptables -C "$CHAIN_NAME" -d 192.168.0.0/16 -j DROP 2>/dev/null || \
-iptables -A "$CHAIN_NAME" -d 192.168.0.0/16 -j DROP
-iptables -C "$CHAIN_NAME" -j DROP 2>/dev/null || \
 iptables -A "$CHAIN_NAME" -j DROP
+ip6tables -A INPUT -i "$HOTSPOT_IFACE" -j DROP -m comment --comment "ds-hotspot"
+ip6tables -A FORWARD -i "$HOTSPOT_IFACE" -j DROP -m comment --comment "ds-hotspot"
 
-# block ipv6 just in case a leak could happen
-
-ip6tables -C INPUT -i "$HOTSPOT_IFACE" -j DROP 2>/dev/null || \
-ip6tables -A INPUT -i "$HOTSPOT_IFACE" -j DROP
-ip6tables -C FORWARD -i "$HOTSPOT_IFACE" -j DROP 2>/dev/null || \
-ip6tables -A FORWARD -i "$HOTSPOT_IFACE" -j DROP
-
-iptables -t nat -C POSTROUTING \
-    -s "$HOTSPOT_SUBNET" \
-    -o "$UPLINK_IFACE" \
-    -j MASQUERADE 2>/dev/null || \
-iptables -t nat -A POSTROUTING \
-    -s "$HOTSPOT_SUBNET" \
-    -o "$UPLINK_IFACE" \
-    -j MASQUERADE
+iptables -t nat -A POSTROUTING -s "$HOTSPOT_SUBNET" -o "$UPLINK_IFACE" -j MASQUERADE
 
 # start everything
 

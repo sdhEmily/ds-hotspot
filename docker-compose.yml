@@ -6,14 +6,8 @@ services:
     cap_add:
       - NET_ADMIN
     environment:
-      # These are the defaults of every environment variable that can be set
-      # (other than DS_MAC_ADDR). You can remove any that you don't change if you want.
-
-      VERBOSE: 0 # Useful for debugging your config but not much else.
       UPLINK_IFACE: eth0
       HOTSPOT_IFACE: wlan0
-      HOTSPOT_IP: 172.31.255.1
-      HOTSPOT_SUBNET: 172.31.255.0/24
       # This is an example config and will most likely NOT work for your adapter
       # This has been configured for a Realtek RTL8188FU chipset.
       # Interface is automatically set to HOTSPOT_IFACE so there is no need to include it.
@@ -24,7 +18,6 @@ services:
         wep_default_key=0
         wep_key0=112233445566778899aabbccdd
 
-        hw_mode=b
         channel=6
         wmm_enabled=0
         auth_algs=1

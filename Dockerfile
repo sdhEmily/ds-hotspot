@@ -33,12 +33,15 @@ RUN apk add --no-cache \
     iptables \
     ip6tables \
     iproute2 \
+    bind-tools \
     curl \
     libnl3
 
 COPY --from=builder \
     /build/hostapd-2.11/hostapd/hostapd \
     /usr/local/bin/hostapd
+
+COPY urls /urls
 
 COPY entrypoint.sh /entrypoint.sh
 
