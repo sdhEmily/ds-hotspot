@@ -23,7 +23,7 @@ fi
 cat > /etc/dnsmasq.conf <<EOF
 interface=${HOTSPOT_IFACE}
 bind-dynamic
-dhcp-range=${HOTSPOT_IP%.*}.10,${HOTSPOT_IP%.*}.10,255.255.255.0,1h
+dhcp-range=${HOTSPOT_IP%.*}.10,${HOTSPOT_IP%.*}.254,255.255.255.0,1h
 dhcp-option=1,255.255.255.0
 dhcp-option=3,${HOTSPOT_IP}
 dhcp-option=6,${HOTSPOT_IP}
