@@ -46,6 +46,7 @@ services:
 
 |Name|Default Value|Description|
 |----------|:-------------:|------:|
+|**VERBOSE**|0|Set to 1 for verbose logging of hostapd and dnsmasq.|
 |**UPLINK_IFACE**|eth0|Network interface that is connected to the internet.|
 |**HOTSPOT_IFACE**|wlan0|Wireless network interface that supports Access Point mode.|
 |**HOTSPOT_IP**|172.31.255.1|Local IP for the hotspot.|
