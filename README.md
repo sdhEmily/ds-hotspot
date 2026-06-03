@@ -1,5 +1,5 @@
 # DS-Hotspot
-### A Docker container that creates a DS-compatible WEP hotspot while restricting network access to Wiimmfi servers only.
+### A Docker container that creates a DS-compatible WEP hotspot while restricting network access to WFC servers only.
 
 ## Requirements
 
