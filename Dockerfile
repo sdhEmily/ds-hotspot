@@ -1,4 +1,4 @@
-FROM alpine:3.23 AS builder
+FROM alpine:3.24 AS builder
 
 RUN apk add --no-cache \
     build-base \
@@ -23,7 +23,7 @@ RUN cp defconfig .config && \
 
 RUN strip hostapd
 
-FROM alpine:3.23
+FROM alpine:3.24
 
 ARG VERSION=unknown
 ENV VERSION=$VERSION
